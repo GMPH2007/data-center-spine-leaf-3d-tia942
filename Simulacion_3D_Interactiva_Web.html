@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulador Data Center 3D/4D Hiper-Realista: ANSI/TIA-942 - Pintado Huaman & Jaramillo Atoche</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <!-- Three.js & OrbitControls -->
+  <script src="assets/three.min.js"></script>
+  <script src="assets/OrbitControls.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>');
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #01040f; font-family: 'Plus Jakarta Sans', sans-serif; color: #f8fafc; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    #canvasContainer { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+    #webglCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
+    #webglCanvas:active { cursor: grabbing; }
+
+    /* Glassmorphism HUD Style */
+    .glass-hud {
+      background: rgba(10, 16, 32, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.75);
+      border-radius: 12px;
+    }
+
+    /* Top Bar HUD */
+    #topBar {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      z-index: 20;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-box {
+      pointer-events: auto;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .badge-4d {
+      background: linear-gradient(135deg, #00f0ff 0%, #0284c7 100%);
+      color: #01040a;
+      font-weight: 900;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+    }
+    .main-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+    .sub-meta {
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    /* Tier Selector Tabs in Header */
+    .tier-selector-bar {
+      pointer-events: auto;
+      display: flex;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 10px;
+    }
+    .tier-tab {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      white-space: nowrap;
+    }
+    .tier-tab:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+    .tier-tab.active-cat1 {
+      background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+      border-color: #f87171;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.6);
+    }
+    .tier-tab.active-cat2 {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      border-color: #f59e0b;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.55);
+    }
+    .tier-tab.active-cat3 {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+    }
+    .tier-tab.active-cat4 {
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+      border-color: #a855f7;
+      color: #ffffff;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.65);
+    }
+
+    /* Telemetry Pill Bar */
+    .telemetry-bar {
+      pointer-events: auto;
+      padding: 6px 14px;
+      display: flex;
+      gap: 12px;
+      font-size: 10.5px;
+      flex-shrink: 0;
+    }
+    .telem-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+    .dot-live {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseLive 2s infinite ease-in-out;
+    }
+    @keyframes pulseLive {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    /* Left Sidebar: Architectural Specs of Active Category */
+    #tierArchCard {
+      position: absolute;
+      top: 68px;
+      left: 14px;
+      width: 320px;
+      z-index: 25;
+      padding: 14px 16px;
+      pointer-events: auto;
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .arch-badge {
+      font-size: 9.5px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .arch-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .arch-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 10.5px;
+    }
+    .arch-stat-box {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 6px;
+      padding: 6px 8px;
+    }
+    .arch-stat-label {
+      font-size: 9px;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .arch-stat-val {
+      font-weight: 800;
+      color: #00f0ff;
+      margin-top: 1px;
+    }
+
+    /* Right Sidebar: Interactive Phase Walkthrough */
+    #phaseStepper {
+      position: absolute;
+      top: 68px;
+      right: 14px;
+      width: 340px;
+      z-index: 25;
+      padding: 12px 14px;
+      pointer-events: auto;
+    }
+    .phase-badge {
+      font-size: 9.5px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .phase-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 3px;
+    }
+    .phase-desc {
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+    .stepper-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .phase-dot-group {
+      display: flex;
+      gap: 5px;
+    }
+    .phase-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #334155;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .phase-dot.active {
+      background: #00f0ff;
+      box-shadow: 0 0 10px #00f0ff;
+      transform: scale(1.2);
+    }
+
+    /* FLIR Thermal Scale Indicator (Floating Bottom Right) */
+    #flirScale {
+      position: absolute;
+      bottom: 82px;
+      right: 18px;
+      z-index: 25;
+      padding: 10px 14px;
+      display: none;
+      width: 220px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .flir-bar {
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #0000ff 0%, #00ffff 25%, #00ff00 50%, #ffff00 75%, #ff0000 100%);
+      margin: 6px 0;
+    }
+    .flir-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: #cbd5e1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Bottom Control Dashboard */
+    #bottomDashboard {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      width: min(97%, 1240px);
+    }
+    .nav-buttons-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 7px 12px;
+      width: 100%;
+    }
+    .control-btn {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: #e2e8f0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .control-btn:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 14px rgba(56, 189, 248, 0.35);
+    }
+    .control-btn.active {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.5);
+    }
+    .btn-alert {
+      background: rgba(239, 68, 68, 0.22);
+      border-color: rgba(239, 68, 68, 0.6);
+      color: #fca5a5;
+    }
+    .btn-alert:hover {
+      background: rgba(239, 68, 68, 0.40);
+      border-color: #ef4444;
+      color: #ffffff;
+    }
+    .btn-gold {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: rgba(245, 158, 11, 0.55);
+      color: #fde68a;
+    }
+    .btn-gold:hover {
+      background: rgba(245, 158, 11, 0.40);
+      border-color: #f59e0b;
+      color: #ffffff;
+    }
+    .btn-purple {
+      background: rgba(168, 85, 247, 0.22);
+      border-color: rgba(168, 85, 247, 0.55);
+      color: #e9d5ff;
+    }
+    .btn-purple:hover {
+      background: rgba(168, 85, 247, 0.40);
+      border-color: #a855f7;
+      color: #ffffff;
+    }
+    .btn-tour {
+      background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+      border-color: #34d399;
+      color: #ffffff;
+      font-weight: 800;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Diagnóstico Flotante Activo de Falla */
+    #diagBanner {
+      position: absolute;
+      bottom: 76px;
+      left: 14px;
+      width: 380px;
+      z-index: 25;
+      padding: 16px;
+      display: none;
+      animation: slideInUp 0.3s ease-out;
+    }
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .diag-badge {
+      font-size: 9.5px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .diag-danger { background: #ef4444; color: white; }
+    .diag-warning { background: #f59e0b; color: black; }
+    .diag-success { background: #10b981; color: black; }
+
+    /* Comparativa Modal TIA-942 */
+    #compareModal {
+      position: absolute;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.92);
+      backdrop-filter: blur(16px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .modal-box-wide {
+      max-width: 840px;
+      width: 100%;
+      padding: 24px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin: 14px 0;
+    }
+    .compare-table th, .compare-table td {
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .compare-table th {
+      background: rgba(15, 23, 42, 0.95);
+      color: #38bdf8;
+      font-weight: 800;
+    }
+    .compare-table tr:hover {
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    /* Blackout / Emergency Alarm Overlay */
+    #emergencyOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+      background: radial-gradient(circle, rgba(239,68,68,0) 40%, rgba(239,68,68,0.25) 100%);
+      transition: opacity 0.5s ease;
+    }
+    .alarm-flashing {
+      animation: alarmPulse 1.2s infinite ease-in-out;
+    }
+    @keyframes alarmPulse {
+      0%, 100% { opacity: 0.1; }
+      50% { opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Emergency Red Strobe Overlay -->
+  <div id="emergencyOverlay"></div>
+
+  <!-- WebGL 3D Container -->
+  <div id="canvasContainer">
+    <canvas id="webglCanvas"></canvas>
+  </div>
+
+  <!-- Top Bar HUD -->
+  <header id="topBar">
+    <div class="brand-box glass-hud">
+      <span class="badge-4d">3D • 4D</span>
+      <div>
+        <div class="main-title">Simulador ANSI/TIA-942: Arquitectura Fisiológica de Tiers</div>
+        <div class="sub-meta">Estudiante: <strong style="color:#ffb703">Gerson Misael Pintado Huaman</strong> • Docente: <strong>Ing. Javier Eduardo Jaramillo Atoche</strong></div>
+      </div>
+    </div>
+
+    <!-- TIER / CATEGORÍA SELECTOR TABS -->
+    <div class="tier-selector-bar glass-hud">
+      <button id="tabCat1" class="tier-tab" onclick="switchCategory(1)">
+        <span>🔴</span> Cat 1 (Tier I: Básico)
+      </button>
+      <button id="tabCat2" class="tier-tab active-cat2" onclick="switchCategory(2)">
+        <span>🟠</span> Cat 2 (Tier II: Redundante)
+      </button>
+      <button id="tabCat3" class="tier-tab" onclick="switchCategory(3)">
+        <span>🔵</span> Cat 3 (Tier III: Concurrente)
+      </button>
+      <button id="tabCat4" class="tier-tab" onclick="switchCategory(4)">
+        <span>💎</span> Cat 4 (Tier IV: Tolerante)
+      </button>
+    </div>
+
+    <div class="telemetry-bar glass-hud mono">
+      <div class="telem-item"><span class="dot-live"></span> SLA: <strong id="telemSLA" style="color:#00f0ff">99.741%</strong></div>
+      <div class="telem-item">⏱️ Downtime: <strong id="telemDown" style="color:#ffb703">22.0 h/a</strong></div>
+      <div class="telem-item">🛡️ <strong id="telemRedund" style="color:#10b981">N+1</strong></div>
+    </div>
+  </header>
+
+  <!-- Left Sidebar: Architectural Specs of Active Category -->
+  <div id="tierArchCard" class="glass-hud">
+    <span id="cardBadge" class="arch-badge" style="background:#f59e0b; color:#000;">CATEGORÍA 2 (TIER II)</span>
+    <div id="cardTitle" class="arch-title">Componentes Redundantes N+1</div>
+    <div id="cardDesc" class="arch-desc">
+      6 gabinetes en 2 filas escalonadas. Núcleo Spine dual (N+1) y doble climatización CRAC. Una sola canalización aérea compartida para toda la sala.
+    </div>
+    <div class="arch-grid mono">
+      <div class="arch-stat-box">
+        <div class="arch-stat-label">RACKS ACTIVOS</div>
+        <div id="statRacks" class="arch-stat-val">6 GABINETES</div>
+      </div>
+      <div class="arch-stat-box">
+        <div class="arch-stat-label">CANALIZACIONES</div>
+        <div id="statDucts" class="arch-stat-val">1 COMPARTIDA</div>
+      </div>
+      <div class="arch-stat-box">
+        <div class="arch-stat-label">NÚCLEO SPINE</div>
+        <div id="statSpine" class="arch-stat-val">2 SPINES (N+1)</div>
+      </div>
+      <div class="arch-stat-box">
+        <div class="arch-stat-label">CLIMA CRAC</div>
+        <div id="statCrac" class="arch-stat-val">2 CRACs (N+1)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar: Interactive Phase Walkthrough -->
+  <div id="phaseStepper" class="glass-hud">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span id="phaseBadge" class="phase-badge">FASE 1 DE 5</span>
+      <div class="phase-dot-group">
+        <div class="phase-dot active" onclick="goToPhase(1)"></div>
+        <div class="phase-dot" onclick="goToPhase(2)"></div>
+        <div class="phase-dot" onclick="goToPhase(3)"></div>
+        <div class="phase-dot" onclick="goToPhase(4)"></div>
+        <div class="phase-dot" onclick="goToPhase(5)"></div>
+      </div>
+    </div>
+    <div id="phaseTitle" class="phase-title">1. Operación Normal: Flujo 100G & Clima</div>
+    <div id="phaseDesc" class="phase-desc">
+      El núcleo Spine 100G conmuta el tráfico hacia los servidores. Las partículas cian representan el aire frío a 20.5 °C y las partículas naranjas el calor disipado.
+    </div>
+    <div class="stepper-nav">
+      <button class="control-btn" onclick="prevPhase()">◀ Anterior</button>
+      <button id="btnAutoTour" class="control-btn btn-tour" onclick="toggleAutoTour()">▶️ Auto-Tour</button>
+      <button class="control-btn" onclick="nextPhase()">Siguiente ▶</button>
+    </div>
+  </div>
+
+  <!-- FLIR Thermal Scale Indicator -->
+  <div id="flirScale" class="glass-hud">
+    <div style="font-size:10px; font-weight:800; color:#38bdf8;">🌡️ ESPECTRO TÉRMICO FLIR (ASHRAE)</div>
+    <div class="flir-bar"></div>
+    <div class="flir-labels">
+      <span>18°C (Frío)</span>
+      <span>24°C</span>
+      <span>38°C (Calor)</span>
+    </div>
+  </div>
+
+  <!-- Diagnóstico Flotante Activo de Falla -->
+  <div id="diagBanner" class="glass-hud">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span id="diagTypeBadge" class="diag-badge diag-danger">FALLA EN CURSO</span>
+      <button class="control-btn" style="padding:2px 8px; font-size:10px;" onclick="resetFailure()">✕ Cerrar</button>
+    </div>
+    <div id="diagTitle" style="font-size:13.5px; font-weight:800; color:#fff; margin-bottom:4px;">Título del Problema</div>
+    <div id="diagDesc" style="font-size:11px; color:#cbd5e1; line-height:1.45; margin-bottom:8px;">Descripción de la avería.</div>
+    <div style="background:rgba(15,23,42,0.85); border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:7px 9px; margin-bottom:8px;">
+      <div style="font-size:9px; font-weight:800; color:#38bdf8; text-transform:uppercase;">IMPACTO EN CATEGORÍA ACTUAL</div>
+      <div id="diagImpact" style="font-size:11px; font-weight:700; color:#fff; margin-top:2px;">Comportamiento del sistema.</div>
+    </div>
+    <div style="font-size:10.5px; color:#10b981; line-height:1.4;" id="diagSolution">Solución técnica implementada según ANSI/TIA-942.</div>
+  </div>
+
+  <!-- Bottom Control Dashboard -->
+  <nav id="bottomDashboard">
+    <div class="nav-buttons-row glass-hud">
+      <button id="btnCamHero" class="control-btn active" onclick="setCamView(0)">🌟 General</button>
+      <button id="btnCamSpine" class="control-btn" onclick="setCamView(1)">⚡ Spine MDA</button>
+      <button id="btnCamBlade" class="control-btn" onclick="setCamView(2)">🖥️ Blades ToR</button>
+      
+      <!-- BOTONES DE RETO: SIMULACIÓN DE PROBLEMAS DIRECTOS -->
+      <button class="control-btn btn-alert" onclick="injectFailure('power')">🔌 ¿Se va la Luz?</button>
+      <button class="control-btn btn-alert" onclick="injectFailure('crac')">❄️ ¿Falla el Aire?</button>
+      <button class="control-btn btn-alert" onclick="injectFailure('fiber')">✂️ ¿Corte de Fibra?</button>
+      <button class="control-btn btn-gold" onclick="resetFailure()">🔄 Normalizar Sala</button>
+      
+      <!-- NUEVAS HERRAMIENTAS ULTRA-AVANZADAS -->
+      <button id="btnThermalFlir" class="control-btn btn-purple" onclick="toggleFlirMode()">🌡️ Termografía FLIR</button>
+      <button id="btnXRay" class="control-btn" onclick="toggleXRayMode()">🔬 Rayos X</button>
+      <button id="btnDrone" class="control-btn" onclick="toggleDroneOrbit()">🚁 Dron Órbita</button>
+      <button class="control-btn" onclick="toggleAirflow()">💨 Frío/Calor: <span id="airState">ON</span></button>
+      <button class="control-btn" onclick="openCompareModal()">📊 Matriz TIA-942</button>
+      <button id="btnAudio" class="control-btn" onclick="toggleAudio()">🔊 Audio: <span id="audioState">OFF</span></button>
+      <button class="control-btn" onclick="toggleFullscreen()">⛶ Full</button>
+    </div>
+  </nav>
+
+  <!-- Modal Comparativa Exhaustiva Categorías 1, 2, 3 y 4 -->
+  <div id="compareModal" onclick="closeCompareModal()">
+    <div class="modal-box-wide glass-hud" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid rgba(56,189,248,0.25); padding-bottom:10px;">
+        <h2 style="font-size:17px; font-weight:800; color:#00f0ff;">Matriz Comparativa ANSI/TIA-942: Categorías 1 a 4</h2>
+        <button class="control-btn" onclick="closeCompareModal()">✕</button>
+      </div>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Parámetro Técnico</th>
+            <th>Categoría 1 (Tier I)</th>
+            <th>Categoría 2 (Tier II)</th>
+            <th>Categoría 3 (Tier III)</th>
+            <th>Categoría 4 (Tier IV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Denominación Oficial</strong></td>
+            <td>Básico (Non-Redundant)</td>
+            <td>Componentes Redundantes</td>
+            <td>Mantenimiento Concurrente</td>
+            <td>Tolerante a Fallos</td>
+          </tr>
+          <tr>
+            <td><strong>Disponibilidad (SLA)</strong></td>
+            <td>99.671%</td>
+            <td>99.741%</td>
+            <td>99.982%</td>
+            <td>99.995%</td>
+          </tr>
+          <tr>
+            <td><strong>Downtime Máx. Anual</strong></td>
+            <td>28.8 horas</td>
+            <td>22.0 horas</td>
+            <td>1.6 horas (96 min)</td>
+            <td>26.3 minutos</td>
+          </tr>
+          <tr>
+            <td><strong>Arquitectura de Sala</strong></td>
+            <td>4 Racks en 1 sola fila básica</td>
+            <td>6 Racks en 2 filas escalonadas</td>
+            <td>8 Racks con Pasillo Confinado</td>
+            <td>Dos Salas Aisladas Cortafuegos 2(N+1)</td>
+          </tr>
+          <tr>
+            <td><strong>Canalizaciones Aéreas</strong></td>
+            <td>1 solo ducto simple</td>
+            <td>1 solo ducto amarillo compartido</td>
+            <td>2 Rutas A y B Físicamente Separadas</td>
+            <td>Doble canalización activa-activa en suites</td>
+          </tr>
+          <tr>
+            <td><strong>Mantenimiento Concurrente</strong></td>
+            <td>❌ NO (Requiere apagado total)</td>
+            <td>❌ NO en canalizaciones</td>
+            <td>✅ SÍ (Sin corte de TI)</td>
+            <td>✅ SÍ (Sin corte de TI)</td>
+          </tr>
+          <tr>
+            <td><strong>¿Qué pasa si se va la luz?</strong></td>
+            <td>Parada total por falta de generador automático</td>
+            <td>UPS absorbe y entra generador en 12s</td>
+            <td>Doble rama A/B sin corte de suministro</td>
+            <td>Doble planta generadora aislada activa-activa</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+        <span style="font-size:11px; color:#94a3b8;">Estándares de Referencia: ANSI/TIA-942-B • Uptime Institute Tier Standard • ANSI/TIA-568.3-D</span>
+        <button class="control-btn" onclick="closeCompareModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. SETUP & CORE THREE.JS INITIALIZATION ---
+    const canvas = document.getElementById('webglCanvas');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x01040f);
+    scene.fog = new THREE.FogExp2(0x01040f, 0.007);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0.0, 4.2, 10.5);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    controls.minDistance = 2.0;
+    controls.maxDistance = 32.0;
+    controls.target.set(0.0, 1.5, -0.4);
+
+    // --- 2. ILUMINACIÓN SATINADA CON EFECTO BLACKOUT ---
+    const ambLight = new THREE.AmbientLight(0x1e293b, 2.8);
+    scene.add(ambLight);
+
+    const keySun = new THREE.DirectionalLight(0xf8fafc, 1.8);
+    keySun.position.set(6, 15, 8);
+    keySun.castShadow = true;
+    scene.add(keySun);
+
+    const fillBlue = new THREE.DirectionalLight(0x0284c7, 0.75);
+    fillBlue.position.set(-8, 12, -4);
+    scene.add(fillBlue);
+
+    // Luces de emergencia estroboscópicas rojas (Blackout)
+    const emergLight1 = new THREE.PointLight(0xef4444, 0, 20);
+    emergLight1.position.set(-5.5, 5.0, -1.0);
+    scene.add(emergLight1);
+
+    const emergLight2 = new THREE.PointLight(0xef4444, 0, 20);
+    emergLight2.position.set(5.5, 5.0, 1.0);
+    scene.add(emergLight2);
+
+    // Luminarias de techo difusas
+    const ceilingLights = [];
+    [-5.0, 0.0, 5.0].forEach(lx => {
+      const p = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.2, 0.6),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+      );
+      p.rotation.x = Math.PI / 2;
+      p.position.set(lx, 5.5, 0);
+      scene.add(p);
+      ceilingLights.push(p);
+    });
+
+    // --- 3. PROCEDURAL TEXTURES ---
+    function createSwitchTexture(label, isSpine) {
+      const cv = document.createElement('canvas');
+      cv.width = 512; cv.height = 70;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#060a14'; c.fillRect(0, 0, 512, 70);
+      c.fillStyle = isSpine ? '#00f0ff' : '#ffb703'; c.fillRect(0, 0, 12, 70);
+      c.font = 'bold 16px "JetBrains Mono", monospace'; c.fillStyle = '#ffffff'; c.fillText(label, 26, 28);
+      c.font = '10px "JetBrains Mono", monospace'; c.fillStyle = '#38bdf8'; c.fillText(isSpine ? 'SPINE CORE 32x100G' : 'LEAF 48x10G + 6x100G', 26, 48);
+
+      for (let p = 0; p < 14; p++) {
+        const px = 220 + p * 20;
+        c.fillStyle = '#0f172a'; c.fillRect(px, 12, 16, 20); c.strokeRect(px, 12, 16, 20);
+        c.fillStyle = isSpine ? '#00f0ff' : '#10b981'; c.fillRect(px + 2, 14, 4, 4);
+        c.fillStyle = '#0f172a'; c.fillRect(px, 36, 16, 20); c.strokeRect(px, 36, 16, 20);
+        c.fillStyle = isSpine ? '#00f0ff' : '#f59e0b'; c.fillRect(px + 2, 38, 4, 4);
+      }
+      return new THREE.CanvasTexture(cv);
+    }
+
+    function createServerTexture(srvName, isSan) {
+      const cv = document.createElement('canvas');
+      cv.width = 512; cv.height = 100;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#090e1a'; c.fillRect(0, 0, 512, 100);
+      c.fillStyle = '#64748b'; c.fillRect(10, 18, 12, 64); c.fillRect(490, 18, 12, 64);
+      c.fillStyle = '#111827'; c.fillRect(28, 12, 140, 76);
+      c.font = 'bold 12px "JetBrains Mono", monospace'; c.fillStyle = isSan ? '#a855f7' : '#00f0ff';
+      c.fillText(srvName, 34, 32);
+      c.font = '9px "JetBrains Mono", monospace'; c.fillStyle = '#94a3b8';
+      c.fillText(isSan ? 'ALL-FLASH NVMe SAN' : 'DUAL XEON • 512GB', 34, 52);
+      c.fillStyle = '#10b981'; c.beginPath(); c.arc(40, 70, 4, 0, Math.PI*2); c.fill();
+
+      for (let d = 0; d < 8; d++) {
+        const dx = 180 + d * 38;
+        c.fillStyle = '#1e293b'; c.fillRect(dx, 14, 34, 34); c.fillRect(dx, 52, 34, 34);
+        c.fillStyle = '#10b981'; c.fillRect(dx + 4, 18, 5, 2); c.fillRect(dx + 4, 56, 5, 2);
+      }
+      return new THREE.CanvasTexture(cv);
+    }
+
+    function createCracTexture(name) {
+      const cv = document.createElement('canvas');
+      cv.width = 512; cv.height = 512;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#070d1e'; c.fillRect(0, 0, 512, 512);
+      c.strokeStyle = '#00f0ff'; c.lineWidth = 4; c.strokeRect(16, 16, 480, 480);
+      c.font = 'bold 24px "JetBrains Mono", monospace'; c.fillStyle = '#00f0ff'; c.fillText('CRAC IN-ROW PRECISION', 40, 60);
+      c.font = '16px "JetBrains Mono", monospace'; c.fillStyle = '#ffffff'; c.fillText(name, 40, 95);
+      c.fillStyle = '#030712'; c.fillRect(40, 120, 432, 100);
+      c.font = 'bold 28px "JetBrains Mono", monospace'; c.fillStyle = '#10b981'; c.fillText('20.5 °C  |  50.2% HR', 60, 180);
+      c.strokeStyle = '#38bdf8'; c.lineWidth = 3;
+      for (let y = 250; y < 470; y += 18) {
+        c.beginPath(); c.moveTo(50, y); c.lineTo(462, y); c.stroke();
+      }
+      return new THREE.CanvasTexture(cv);
+    }
+
+    function createFirewallSignTexture() {
+      const cv = document.createElement('canvas');
+      cv.width = 512; cv.height = 160;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#7f1d1d'; c.fillRect(0, 0, 512, 160);
+      c.fillStyle = '#f59e0b'; c.fillRect(0, 0, 512, 14); c.fillRect(0, 146, 512, 14);
+      c.font = 'bold 26px "JetBrains Mono", monospace'; c.fillStyle = '#ffffff'; c.textAlign = 'center';
+      c.fillText('MURO CORTAFUEGOS ANSI/TIA-942', 256, 58);
+      c.font = 'bold 18px "Plus Jakarta Sans", sans-serif'; c.fillStyle = '#fde68a';
+      c.fillText('SEPARACIÓN COMPARTIMENTADA TIER IV • RF-120', 256, 96);
+      c.font = '13px "JetBrains Mono", monospace'; c.fillStyle = '#ffffff';
+      c.fillText('SISTEMA A (PRIMARIO) ◄──► SISTEMA B (2N ACTIVO)', 256, 130);
+      return new THREE.CanvasTexture(cv);
+    }
+
+    function createFloorTierBannerTexture(text, sub, col) {
+      const cv = document.createElement('canvas');
+      cv.width = 1024; cv.height = 128;
+      const c = cv.getContext('2d');
+      c.fillStyle = 'rgba(2, 6, 23, 0.94)'; c.fillRect(0, 0, 1024, 128);
+      c.strokeStyle = col; c.lineWidth = 4; c.strokeRect(10, 10, 1004, 108);
+      c.font = 'bold 30px "JetBrains Mono", monospace'; c.fillStyle = col; c.textAlign = 'center';
+      c.fillText(text, 512, 58);
+      c.font = 'bold 17px "Plus Jakarta Sans", sans-serif'; c.fillStyle = '#ffffff';
+      c.fillText(sub, 512, 95);
+      return new THREE.CanvasTexture(cv);
+    }
+
+    function createChipTexture(label, sub, color) {
+      const cv = document.createElement('canvas');
+      cv.width = 260; cv.height = 70;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.94)'; ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      const r = 8;
+      ctx.moveTo(r, 0); ctx.lineTo(260 - r, 0); ctx.quadraticCurveTo(260, 0, 260, r);
+      ctx.lineTo(260, 70 - r); ctx.quadraticCurveTo(260, 70, 260 - r, 70);
+      ctx.lineTo(r, 70); ctx.quadraticCurveTo(0, 70, 0, 70 - r);
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color; ctx.fillRect(14, 5, 232, 2.5);
+      ctx.font = 'bold 20px "JetBrains Mono", monospace'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.fillText(label, 130, 36);
+      ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif'; ctx.fillStyle = color; ctx.fillText(sub, 130, 56);
+      return new THREE.CanvasTexture(cv);
+    }
+
+    // --- 4. MATERIALES Y MODELOS BASE ---
+    const matFloor = new THREE.MeshStandardMaterial({ color: 0x091124, roughness: 0.58, metalness: 0.15 });
+    const matWall = new THREE.MeshStandardMaterial({ color: 0x050a18, roughness: 0.50, metalness: 0.30 });
+    const matRackSteel = new THREE.MeshStandardMaterial({ color: 0x080e1a, roughness: 0.35, metalness: 0.85 });
+    const matGlass = new THREE.MeshPhysicalMaterial({
+      color: 0x0284c7, transparent: true, opacity: 0.15, roughness: 0.08, metalness: 0.90, clearcoat: 1.0, side: THREE.DoubleSide
+    });
+
+    // Materiales de Canalizaciones
+    const matDuctYellow = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.40, transparent: true, opacity: 0.92 });
+    const matDuctBlue = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.25, metalness: 0.40, transparent: true, opacity: 0.92 });
+    const matDuctPurple = new THREE.MeshStandardMaterial({ color: 0xa855f7, roughness: 0.25, metalness: 0.40, transparent: true, opacity: 0.92 });
+    const matSteelRod = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.95, roughness: 0.20 });
+
+    // --- 5. ENTORNO ARQUITECTÓNICO ---
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), matFloor);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(32, 32, 0x0284c7, 0x0f172a);
+    grid.position.y = 0.005;
+    scene.add(grid);
+
+    // Muros de Sala Blanca Perimetrales
+    const wallN = new THREE.Mesh(new THREE.BoxGeometry(28, 6.8, 0.2), matWall);
+    wallN.position.set(0, 3.4, -6.2);
+    scene.add(wallN);
+
+    // Cilindros Novec 1230 de Extinción de Incendios en pared
+    [-9.0, 9.0].forEach(cx => {
+      const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.8, 16), new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.8, roughness: 0.3 }));
+      cyl.position.set(cx, 1.2, -6.0);
+      scene.add(cyl);
+    });
+
+    // Cartel 3D Dinámico en el suelo
+    const floorBannerMat = new THREE.MeshBasicMaterial({
+      map: createFloorTierBannerTexture("CATEGORÍA 2 (TIER II) • COMPONENTES REDUNDANTES N+1", "1 Canalización Compartida • SLA: 99.741% • Downtime: 22.0 h/año", "#f59e0b"),
+      transparent: true, side: THREE.DoubleSide
+    });
+    const floorBannerMesh = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 1.1), floorBannerMat);
+    floorBannerMesh.rotation.x = -Math.PI / 2;
+    floorBannerMesh.position.set(0, 0.012, 3.8);
+    scene.add(floorBannerMesh);
+
+    // --- 6. FUNCIÓN CONSTRUCTORA DE RACKS ---
+    const rackW = 0.85;
+    const rackH = 2.40;
+    const rackD = 1.15;
+    const allRackMeshes = [];
+
+    function buildRackMesh(r) {
+      const rackG = new THREE.Group();
+      const halfW = rackW / 2;
+      const halfD = rackD / 2;
+
+      // Paneles exteriores de acero
+      const sideG = new THREE.BoxGeometry(0.015, rackH, rackD * 0.96);
+      const lSide = new THREE.Mesh(sideG, matRackSteel);
+      lSide.position.set(-halfW + 0.008, rackH / 2, 0);
+      rackG.add(lSide);
+
+      const rSide = new THREE.Mesh(sideG, matRackSteel);
+      rSide.position.set(halfW - 0.008, rackH / 2, 0);
+      rackG.add(rSide);
+
+      const topCap = new THREE.Mesh(new THREE.BoxGeometry(rackW, 0.025, rackD), matRackSteel);
+      topCap.position.set(0, rackH - 0.012, 0);
+      rackG.add(topCap);
+
+      const botCap = new THREE.Mesh(new THREE.BoxGeometry(rackW, 0.025, rackD), matRackSteel);
+      botCap.position.set(0, 0.012, 0);
+      rackG.add(botCap);
+
+      // Panel trasero
+      const backP = new THREE.Mesh(new THREE.BoxGeometry(rackW * 0.95, rackH * 0.95, 0.01), matRackSteel);
+      backP.position.set(0, rackH / 2, -halfD + 0.01);
+      rackG.add(backP);
+
+      // Equipamiento Interno
+      if (!r.isCrac) {
+        const swTex = createSwitchTexture(r.label, r.isSpine);
+        const swMat = new THREE.MeshStandardMaterial({
+          map: swTex, emissive: 0xffffff, emissiveMap: swTex, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.8
+        });
+        const sw = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.055, 0.68), [
+          matRackSteel, matRackSteel, matRackSteel, matRackSteel, swMat, matRackSteel
+        ]);
+        sw.position.set(0, rackH * 0.91, 0.08);
+        rackG.add(sw);
+
+        // Servidores 2U
+        [rackH * 0.68, rackH * 0.52, rackH * 0.36, rackH * 0.20].forEach((sy, sIdx) => {
+          const sTex = createServerTexture(`SRV-${r.label}-0${sIdx+1}`, r.isSan);
+          const sMat = new THREE.MeshStandardMaterial({
+            map: sTex, emissive: 0xffffff, emissiveMap: sTex, emissiveIntensity: 0.80, roughness: 0.25, metalness: 0.85
+          });
+          const srv = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.088, 0.70), [
+            matRackSteel, matRackSteel, matRackSteel, matRackSteel, sMat, matRackSteel
+          ]);
+          srv.position.set(0, sy, 0.08);
+          rackG.add(srv);
+        });
+
+      } else {
+        // CRAC In-Row
+        const crTex = createCracTexture(r.name);
+        const crMat = new THREE.MeshStandardMaterial({
+          map: crTex, emissive: 0xffffff, emissiveMap: crTex, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.65
+        });
+        const crac = new THREE.Mesh(new THREE.BoxGeometry(rackW * 0.92, rackH * 0.95, rackD * 0.90), [
+          matRackSteel, matRackSteel, matRackSteel, matRackSteel, crMat, matRackSteel
+        ]);
+        crac.position.set(0, rackH / 2, 0);
+        rackG.add(crac);
+      }
+
+      // Puerta de Cristal
+      const doorPivot = new THREE.Group();
+      doorPivot.position.set(-halfW, 0, halfD);
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(rackW - 0.08, rackH - 0.10), matGlass);
+      glass.position.set(halfW, rackH / 2, 0.005);
+      doorPivot.add(glass);
+      rackG.add(doorPivot);
+
+      // Chip Holográfico
+      const chipTex = createChipTexture(r.label, r.sub, r.color);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: chipTex, transparent: true, depthTest: false }));
+      sprite.scale.set(0.68, 0.185, 1.0);
+      sprite.position.set(0, rackH + 0.30, 0);
+      rackG.add(sprite);
+
+      allRackMeshes.push({ group: rackG, sides: [lSide, rSide, topCap, botCap, backP] });
+      return { group: rackG, doorPivot: doorPivot };
+    }
+
+    // Varillas roscadas de suspensión de techo (Unistrut Panduit Hangers)
+    function addHangerRods(group, x, z, yTop = 5.4, yBot = 2.8) {
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, yTop - yBot, 8), matSteelRod);
+      rod.position.set(x, (yTop + yBot) / 2, z);
+      group.add(rod);
+    }
+
+    // --- 7. CONSTRUCCIÓN DE LAS 4 ARQUITECTURAS FÍSICAS ---
+    const catGroup1 = new THREE.Group(); // Tier I
+    const catGroup2 = new THREE.Group(); // Tier II
+    const catGroup3 = new THREE.Group(); // Tier III
+    const catGroup4 = new THREE.Group(); // Tier IV
+
+    scene.add(catGroup1);
+    scene.add(catGroup2);
+    scene.add(catGroup3);
+    scene.add(catGroup4);
+
+    // A. CATEGORÍA 1 (TIER I: BÁSICO - 4 RACKS EN 1 SOLA FILA SIMPLE)
+    const cat1Racks = [
+      { id: "er-c1", label: "ER-01", sub: "ACOMETIDA WAN", name: "Acometida Única", x: -3.0, y: 0, z: 0, color: "#10b981" },
+      { id: "mda-c1", label: "MDA-01", sub: "SPINE ÚNICO (N)", name: "Spine 100G (Sin Redundancia)", x: -1.0, y: 0, z: 0, color: "#00f0ff", isSpine: true },
+      { id: "hda-c1", label: "HDA-01", sub: "CÓMPUTO LOGÍSTICA", name: "Servidores Blade Cómputo", x: 1.0, y: 0, z: 0, color: "#ffb703" },
+      { id: "crac-c1", label: "CRAC-01", sub: "CLIMA ÚNICO (N)", name: "CRAC Simple In-Row", x: 3.0, y: 0, z: 0, color: "#38bdf8", isCrac: true }
+    ];
+    cat1Racks.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      catGroup1.add(res.group);
+    });
+
+    const cat1Duct = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.08, 0.22), matDuctYellow);
+    cat1Duct.position.set(0, rackH + 0.35, 0);
+    catGroup1.add(cat1Duct);
+    [-2.5, 0.0, 2.5].forEach(rx => addHangerRods(catGroup1, rx, 0, 5.4, rackH + 0.35));
+
+    // B. CATEGORÍA 2 (TIER II: REDUNDANTE N+1 - 6 RACKS EN 2 FILAS ESCALONADAS)
+    const cat2Racks = [
+      { id: "er-c2", label: "ER-01", sub: "ACOMETIDA WAN", name: "Acometida con Backup", x: -3.5, y: 0, z: -1.4, color: "#10b981" },
+      { id: "mda-c2", label: "MDA-01", sub: "SPINE DUAL N+1", name: "2x Spine Core 100G (N+1)", x: -1.2, y: 0, z: -1.4, color: "#00f0ff", isSpine: true },
+      { id: "crac-c2a", label: "CRAC-01", sub: "CLIMA NORTE", name: "CRAC In-Row Principal", x: 1.2, y: 0, z: -1.4, color: "#38bdf8", isCrac: true },
+      { id: "hda-c2a", label: "HDA-01", sub: "CÓMPUTO BLADE", name: "Cluster Blades Aduanas", x: -2.4, y: 0, z: 1.4, color: "#ffb703" },
+      { id: "hda-c2b", label: "HDA-02", sub: "STORAGE SAN", name: "Cabina NVMe SAN Flash", x: 0.0, y: 0, z: 1.4, color: "#a855f7", isSan: true },
+      { id: "crac-c2b", label: "CRAC-02", sub: "CLIMA SUR (N+1)", name: "CRAC In-Row de Reserva N+1", x: 2.4, y: 0, z: 1.4, color: "#38bdf8", isCrac: true }
+    ];
+    cat2Racks.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      catGroup2.add(res.group);
+    });
+
+    const cat2Duct1 = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.22), matDuctYellow);
+    cat2Duct1.position.set(-1.1, rackH + 0.35, -1.4);
+    catGroup2.add(cat2Duct1);
+    const cat2Duct2 = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.22), matDuctYellow);
+    cat2Duct2.position.set(0.0, rackH + 0.35, 1.4);
+    catGroup2.add(cat2Duct2);
+    const cat2Bridge = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 2.8), matDuctYellow);
+    cat2Bridge.position.set(-0.6, rackH + 0.39, 0);
+    catGroup2.add(cat2Bridge);
+
+    // C. CATEGORÍA 3 (TIER III: CONCURRENTE - PASILLO CONFINADO & 2 DUCTOS SEPARADOS)
+    const cat3RacksLeft = [
+      { id: "c3-l1", label: "MDA-01", sub: "SPINE RUTA A", name: "Núcleo Primario", x: -2.2, y: 0, z: -2.4, color: "#00f0ff", isSpine: true },
+      { id: "c3-l2", label: "HDA-01", sub: "BLADES PORTUARIOS", name: "Cómputo Fila A", x: -2.2, y: 0, z: -0.8, color: "#ffb703" },
+      { id: "c3-l3", label: "HDA-02", sub: "DATABASE SUNAT", name: "Bases de Datos APN", x: -2.2, y: 0, z: 0.8, color: "#ffb703" },
+      { id: "c3-l4", label: "CRAC-A", sub: "CLIMA RUTA A", name: "CRAC In-Row Fila A", x: -2.2, y: 0, z: 2.4, color: "#38bdf8", isCrac: true }
+    ];
+    const cat3RacksRight = [
+      { id: "c3-r1", label: "MDA-02", sub: "SPINE RUTA B", name: "Núcleo Secundario", x: 2.2, y: 0, z: -2.4, color: "#00f0ff", isSpine: true },
+      { id: "c3-r2", label: "HDA-03", sub: "STORAGE NVMe SAN", name: "Almacenamiento Fila B", x: 2.2, y: 0, z: -0.8, color: "#a855f7", isSan: true },
+      { id: "c3-r3", label: "HDA-04", sub: "VIRTUALIZACIÓN CLOUD", name: "Cluster K8s Fila B", x: 2.2, y: 0, z: 0.8, color: "#ffb703" },
+      { id: "c3-r4", label: "CRAC-B", sub: "CLIMA RUTA B", name: "CRAC In-Row Fila B", x: 2.2, y: 0, z: 2.4, color: "#38bdf8", isCrac: true }
+    ];
+
+    cat3RacksLeft.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      res.group.rotation.y = Math.PI / 2;
+      catGroup3.add(res.group);
+    });
+    cat3RacksRight.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      res.group.rotation.y = -Math.PI / 2;
+      catGroup3.add(res.group);
+    });
+
+    const aisleGlassRoof = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 5.8), matGlass);
+    aisleGlassRoof.rotation.x = -Math.PI / 2;
+    aisleGlassRoof.position.set(0, rackH + 0.05, 0);
+    catGroup3.add(aisleGlassRoof);
+
+    const aisleDoor = new THREE.Mesh(new THREE.PlaneGeometry(3.2, rackH), matGlass);
+    aisleDoor.position.set(0, rackH / 2, 3.0);
+    catGroup3.add(aisleDoor);
+
+    const cat3DuctA = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 6.2), matDuctYellow);
+    cat3DuctA.position.set(-2.2, rackH + 0.40, 0);
+    catGroup3.add(cat3DuctA);
+
+    const cat3DuctB = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 6.2), matDuctBlue);
+    cat3DuctB.position.set(2.2, rackH + 0.40, 0);
+    catGroup3.add(cat3DuctB);
+
+    function createRouteBanner(text, col) {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 64;
+      const c = cv.getContext('2d');
+      c.fillStyle = col; c.fillRect(0, 0, 256, 64);
+      c.font = 'bold 20px "JetBrains Mono", monospace'; c.fillStyle = '#000000'; c.textAlign = 'center';
+      c.fillText(text, 128, 40);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
+      sp.scale.set(1.4, 0.35, 1);
+      return sp;
+    }
+    const signRutaA = createRouteBanner("RUTA A (AMARILLA)", "#f59e0b");
+    signRutaA.position.set(-2.2, rackH + 0.70, 0);
+    catGroup3.add(signRutaA);
+
+    const signRutaB = createRouteBanner("RUTA B (AZUL CIAN)", "#00f0ff");
+    signRutaB.position.set(2.2, rackH + 0.70, 0);
+    catGroup3.add(signRutaB);
+
+    // D. CATEGORÍA 4 (TIER IV: TOLERANTE A FALLOS - DOS SALAS COMPARTIMENTADAS)
+    const firewallMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 5.8, 8.4), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 }));
+    firewallMesh.position.set(0, 2.9, 0);
+    catGroup4.add(firewallMesh);
+
+    const fireSignMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75), new THREE.MeshBasicMaterial({
+      map: createFirewallSignTexture(), side: THREE.DoubleSide
+    }));
+    fireSignMesh.rotation.y = Math.PI / 2;
+    fireSignMesh.position.set(-0.19, 3.8, 0);
+    catGroup4.add(fireSignMesh);
+
+    const fireSignMeshR = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75), new THREE.MeshBasicMaterial({
+      map: createFirewallSignTexture(), side: THREE.DoubleSide
+    }));
+    fireSignMeshR.rotation.y = -Math.PI / 2;
+    fireSignMeshR.position.set(0.19, 3.8, 0);
+    catGroup4.add(fireSignMeshR);
+
+    const cat4RacksA = [
+      { id: "c4-a1", label: "ER-A", sub: "WAN OPERADOR 1", name: "Acometida Primaria", x: -3.8, y: 0, z: -1.2, color: "#10b981" },
+      { id: "c4-a2", label: "MDA-A", sub: "SPINE SUITE A", name: "Spine Core 100G Sala A", x: -1.8, y: 0, z: -1.2, color: "#00f0ff", isSpine: true },
+      { id: "c4-a3", label: "HDA-A", sub: "BLADES SUITE A", name: "Servidores Blades Sala A", x: -3.8, y: 0, z: 1.2, color: "#ffb703" },
+      { id: "c4-a4", label: "CRAC-A", sub: "CLIMA SUITE A", name: "CRAC In-Row Sala A", x: -1.8, y: 0, z: 1.2, color: "#38bdf8", isCrac: true }
+    ];
+    cat4RacksA.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      catGroup4.add(res.group);
+    });
+
+    const cat4DuctA = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 0.22), matDuctBlue);
+    cat4DuctA.position.set(-2.8, rackH + 0.35, 0);
+    catGroup4.add(cat4DuctA);
+
+    const cat4RacksB = [
+      { id: "c4-b1", label: "ER-B", sub: "WAN OPERADOR 2", name: "Acometida Secundaria", x: 1.8, y: 0, z: -1.2, color: "#10b981" },
+      { id: "c4-b2", label: "MDA-B", sub: "SPINE SUITE B", name: "Spine Core 100G Sala B", x: 3.8, y: 0, z: -1.2, color: "#a855f7", isSpine: true },
+      { id: "c4-b3", label: "HDA-B", sub: "STORAGE SUITE B", name: "Cabina NVMe Sala B", x: 1.8, y: 0, z: 1.2, color: "#a855f7", isSan: true },
+      { id: "c4-b4", label: "CRAC-B", sub: "CLIMA SUITE B", name: "CRAC In-Row Sala B", x: 3.8, y: 0, z: 1.2, color: "#38bdf8", isCrac: true }
+    ];
+    cat4RacksB.forEach(r => {
+      const res = buildRackMesh(r);
+      res.group.position.set(r.x, r.y, r.z);
+      catGroup4.add(res.group);
+    });
+
+    const cat4DuctB = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 0.22), matDuctPurple);
+    cat4DuctB.position.set(2.8, rackH + 0.35, 0);
+    catGroup4.add(cat4DuctB);
+
+    const signSuiteA = createRouteBanner("SALA BLANCA A (SISTEMA 1)", "#00f0ff");
+    signSuiteA.position.set(-2.8, rackH + 0.70, 0);
+    catGroup4.add(signSuiteA);
+
+    const signSuiteB = createRouteBanner("SALA BLANCA B (SISTEMA 2N)", "#a855f7");
+    signSuiteB.position.set(2.8, rackH + 0.70, 0);
+    catGroup4.add(signSuiteB);
+
+    // --- 8. SIMULACIÓN CFD: PARTÍCULAS DE FRÍO (CIAN) Y CALOR (ROJO) ---
+    const coldCount = 280;
+    const coldGeo = new THREE.BufferGeometry();
+    const coldPos = new Float32Array(coldCount * 3);
+    const coldSpd = new Float32Array(coldCount);
+    for (let p = 0; p < coldCount; p++) {
+      coldPos[p * 3] = (Math.random() - 0.5) * 11.0;
+      coldPos[p * 3 + 1] = 0.05 + Math.random() * 2.4;
+      coldPos[p * 3 + 2] = (Math.random() - 0.5) * 3.6;
+      coldSpd[p] = 0.009 + Math.random() * 0.014;
+    }
+    coldGeo.setAttribute('position', new THREE.BufferAttribute(coldPos, 3));
+    const coldParticles = new THREE.Points(coldGeo, new THREE.PointsMaterial({
+      color: 0x00f0ff, size: 0.055, transparent: true, opacity: 0.80, blending: THREE.AdditiveBlending
+    }));
+    scene.add(coldParticles);
+
+    const hotCount = 200;
+    const hotGeo = new THREE.BufferGeometry();
+    const hotPos = new Float32Array(hotCount * 3);
+    const hotSpd = new Float32Array(hotCount);
+    for (let p = 0; p < hotCount; p++) {
+      hotPos[p * 3] = (Math.random() - 0.5) * 11.0;
+      hotPos[p * 3 + 1] = 0.8 + Math.random() * 3.5;
+      hotPos[p * 3 + 2] = (Math.random() - 0.5) * 4.4;
+      hotSpd[p] = 0.012 + Math.random() * 0.018;
+    }
+    hotGeo.setAttribute('position', new THREE.BufferAttribute(hotPos, 3));
+    const hotParticles = new THREE.Points(hotGeo, new THREE.PointsMaterial({
+      color: 0xff4d00, size: 0.065, transparent: true, opacity: 0.70, blending: THREE.AdditiveBlending
+    }));
+    scene.add(hotParticles);
+
+    let isAirflowActive = true;
+    function toggleAirflow() {
+      isAirflowActive = !isAirflowActive;
+      coldParticles.visible = isAirflowActive;
+      hotParticles.visible = isAirflowActive;
+      document.getElementById('airState').textContent = isAirflowActive ? 'ON' : 'OFF';
+    }
+
+    // --- 9. MODOS AVANZADOS: TERMOGRAFÍA FLIR, RAYOS X Y DRON ---
+    let isFlirMode = false;
+    let isXRayMode = false;
+    let isDroneMode = false;
+
+    function toggleFlirMode() {
+      isFlirMode = !isFlirMode;
+      const btn = document.getElementById('btnThermalFlir');
+      const scale = document.getElementById('flirScale');
+
+      if (isFlirMode) {
+        btn.classList.add('active');
+        scale.style.display = 'block';
+        renderer.toneMappingExposure = 1.70;
+        ambLight.color.setHex(0x1e1b4b);
+        keySun.color.setHex(0x06b6d4);
+        fillBlue.color.setHex(0xef4444);
+        matFloor.color.setHex(0x0c4a6e);
+      } else {
+        btn.classList.remove('active');
+        scale.style.display = 'none';
+        renderer.toneMappingExposure = 1.25;
+        ambLight.color.setHex(0x1e293b);
+        keySun.color.setHex(0xf8fafc);
+        fillBlue.color.setHex(0x0284c7);
+        matFloor.color.setHex(0x091124);
+      }
+    }
+
+    function toggleXRayMode() {
+      isXRayMode = !isXRayMode;
+      const btn = document.getElementById('btnXRay');
+      btn.classList.toggle('active', isXRayMode);
+
+      allRackMeshes.forEach(rm => {
+        rm.sides.forEach(s => {
+          s.material = isXRayMode ? 
+            new THREE.MeshStandardMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.20, wireframe: true }) : 
+            matRackSteel;
+        });
+      });
+    }
+
+    function toggleDroneOrbit() {
+      isDroneMode = !isDroneMode;
+      const btn = document.getElementById('btnDrone');
+      btn.classList.toggle('active', isDroneMode);
+      controls.autoRotate = isDroneMode;
+      controls.autoRotateSpeed = 1.2;
+    }
+
+    // --- 10. CONTROL DINÁMICO DE CATEGORÍAS ---
+    let currentCategory = 2; // Default: Categoría 2 (Tier II)
+
+    const tierData = {
+      1: {
+        name: "Categoría 1 (Tier I: Básico)",
+        badge: "CATEGORÍA 1 (TIER I: BÁSICO)",
+        badgeBg: "#ef4444",
+        badgeCol: "#ffffff",
+        title: "Capacidad Básica Simple (N)",
+        desc: "Sala de servidores pequeña de 4 gabinetes en una sola fila. 1 solo switch Spine, 1 solo CRAC y 1 sola canalización aérea. Sin redundancia: cualquier falla o mantenimiento detiene todo el Data Center.",
+        sla: "99.671%",
+        downtime: "28.8 horas",
+        redund: "N (Sin Respaldo)",
+        racks: "4 GABINETES",
+        ducts: "1 SIMPLE",
+        spine: "1 SPÍNE (N)",
+        crac: "1 CRAC (N)",
+        bannerText: "🔴 CATEGORÍA 1 (TIER I) • CAPACIDAD BÁSICA (N) • 1 RUTA / 4 RACKS",
+        bannerSub: "Sin Redundancia de Equipos ni Rutas • SLA: 99.671% • Downtime Anual: 28.8 horas",
+        bannerCol: "#ef4444",
+        tabClass: "active-cat1",
+        camPos: new THREE.Vector3(0.0, 3.8, 8.8),
+        lookPos: new THREE.Vector3(0.0, 1.2, 0.0)
+      },
+      2: {
+        name: "Categoría 2 (Tier II: Redundante)",
+        badge: "CATEGORÍA 2 (TIER II: REDUNDANTE)",
+        badgeBg: "#f59e0b",
+        badgeCol: "#000000",
+        title: "Componentes Redundantes (N+1)",
+        desc: "Data Center mediano de 6 gabinetes en 2 filas escalonadas. Switches Spine duales N+1 y 2 unidades CRAC. Una sola canalización aérea compartida para todo el transporte.",
+        sla: "99.741%",
+        downtime: "22.0 horas",
+        redund: "N+1 Componentes",
+        racks: "6 GABINETES",
+        ducts: "1 COMPARTIDA",
+        spine: "2 SPINES (N+1)",
+        crac: "2 CRACs (N+1)",
+        bannerText: "🟠 CATEGORÍA 2 (TIER II) • COMPONENTES REDUNDANTES (N+1)",
+        bannerSub: "1 Canalización Compartida • SLA: 99.741% • Downtime Anual: 22.0 horas",
+        bannerCol: "#f59e0b",
+        tabClass: "active-cat2",
+        camPos: new THREE.Vector3(0.0, 4.2, 10.5),
+        lookPos: new THREE.Vector3(0.0, 1.4, 0.0)
+      },
+      3: {
+        name: "Categoría 3 (Tier III: Concurrente)",
+        badge: "CATEGORÍA 3 (TIER III: CONCURRENTE)",
+        badgeBg: "#0284c7",
+        badgeCol: "#ffffff",
+        title: "Mantenimiento Concurrente & 2 Rutas",
+        desc: "8 gabinetes organizados en 2 filas enfrentadas con Pasillo Frío Confinado (techo de cristal). DOS CANALIZACIONES FÍSICAS INDEPENDIENTES (Ruta A Amarilla y Ruta B Azul) separadas por más de 4 metros.",
+        sla: "99.982%",
+        downtime: "1.6 horas (96 min)",
+        redund: "N+1 con 2 Rutas (A y B)",
+        racks: "8 GABINETES",
+        ducts: "2 RUTAS SEPARADAS",
+        spine: "SPINES DUALES A/B",
+        crac: "CRACs DUALES A/B",
+        bannerText: "🔵 CATEGORÍA 3 (TIER III) • MANTENIMIENTO CONCURRENTE • DOBLE RUTA A y B",
+        bannerSub: "Doble Canalización Separada • SLA: 99.982% • Downtime Anual: 1.6 horas",
+        bannerCol: "#00f0ff",
+        tabClass: "active-cat3",
+        camPos: new THREE.Vector3(0.0, 4.8, 9.8),
+        lookPos: new THREE.Vector3(0.0, 1.4, 0.0)
+      },
+      4: {
+        name: "Categoría 4 (Tier IV: Tolerante a Fallos)",
+        badge: "CATEGORÍA 4 (TIER IV: TOLERANTE)",
+        badgeBg: "#7c3aed",
+        badgeCol: "#ffffff",
+        title: "Tolerante a Fallos & Compartimentado",
+        desc: "DOS SALAS FÍSICAMENTE AISLADAS (Sala A y Sala B) divididas por un Muro Cortafuegos RF-120. Sistemas gemelos activos-activos 2(N+1) con canalizaciones independientes (Cian y Púrpura).",
+        sla: "99.995%",
+        downtime: "26.3 minutos",
+        redund: "2(N+1) Activo-Activo",
+        racks: "8 GAB. EN 2 SALAS",
+        ducts: "2 COMPARTIMENTADOS",
+        spine: "2N INDEPENDIENTES",
+        crac: "2N COMPARTIMENTADOS",
+        bannerText: "💎 CATEGORÍA 4 (TIER IV) • TOLERANTE A FALLOS • COMPARTIMENTACIÓN 2(N+1)",
+        bannerSub: "Dos Salas Físicamente Aisladas con Muro Cortafuegos • Downtime Anual: 26.3 min",
+        bannerCol: "#a855f7",
+        tabClass: "active-cat4",
+        camPos: new THREE.Vector3(0.0, 5.2, 11.2),
+        lookPos: new THREE.Vector3(0.0, 1.6, 0.0)
+      }
+    };
+
+    function switchCategory(catNum) {
+      currentCategory = catNum;
+      const data = tierData[catNum];
+
+      // Visibilidad exclusiva de la arquitectura elegida en 3D
+      catGroup1.visible = (catNum === 1);
+      catGroup2.visible = (catNum === 2);
+      catGroup3.visible = (catNum === 3);
+      catGroup4.visible = (catNum === 4);
+
+      // Actualizar Tabs en la cabecera
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`tabCat${i}`).className = 'tier-tab';
+      }
+      document.getElementById(`tabCat${catNum}`).classList.add(data.tabClass);
+
+      // Actualizar Telemetría Superior
+      document.getElementById('telemSLA').textContent = data.sla;
+      document.getElementById('telemDown').textContent = data.downtime;
+      document.getElementById('telemRedund').textContent = data.redund;
+
+      // Actualizar Tarjeta de Especificaciones de Arquitectura
+      const badge = document.getElementById('cardBadge');
+      badge.textContent = data.badge;
+      badge.style.background = data.badgeBg;
+      badge.style.color = data.badgeCol;
+
+      document.getElementById('cardTitle').textContent = data.title;
+      document.getElementById('cardDesc').textContent = data.desc;
+      document.getElementById('statRacks').textContent = data.racks;
+      document.getElementById('statDucts').textContent = data.ducts;
+      document.getElementById('statSpine').textContent = data.spine;
+      document.getElementById('statCrac').textContent = data.crac;
+
+      // Actualizar Cartel 3D del suelo
+      floorBannerMesh.material.map = createFloorTierBannerTexture(data.bannerText, data.bannerSub, data.bannerCol);
+      floorBannerMesh.material.map.needsUpdate = true;
+
+      // Mover suavemente la cámara al mejor ángulo para esta categoría
+      glideTo(data.camPos, data.lookPos);
+
+      resetFailure();
+    }
+
+    // Inicializar por defecto en Categoría 2
+    catGroup1.visible = false;
+    catGroup2.visible = true;
+    catGroup3.visible = false;
+    catGroup4.visible = false;
+
+    // --- 11. SIMULACIÓN DE FALLAS Y SOLUCIONES ---
+    let activeFailure = null;
+    let isBlackout = false;
+
+    function openCompareModal() {
+      document.getElementById('compareModal').style.display = 'flex';
+    }
+    function closeCompareModal() {
+      document.getElementById('compareModal').style.display = 'none';
+    }
+
+    function injectFailure(type) {
+      resetFailure();
+      activeFailure = type;
+
+      const banner = document.getElementById('diagBanner');
+      banner.style.display = 'block';
+
+      const typeBadge = document.getElementById('diagTypeBadge');
+      const title = document.getElementById('diagTitle');
+      const desc = document.getElementById('diagDesc');
+      const impact = document.getElementById('diagImpact');
+      const solution = document.getElementById('diagSolution');
+
+      if (type === 'power') {
+        title.textContent = "🔌 ¿Qué Pasa si se va la Luz? (Corte Eléctrico)";
+        desc.textContent = "Corte total de suministro de media tensión desde la subestación externa de Paita.";
+        
+        isBlackout = true;
+        ambLight.intensity = 0.45;
+        keySun.intensity = 0.20;
+        fillBlue.intensity = 0.15;
+        ceilingLights.forEach(l => l.material.color.setHex(0x334155));
+        emergLight1.intensity = 3.5;
+        emergLight2.intensity = 3.5;
+        document.getElementById('emergencyOverlay').classList.add('alarm-flashing');
+
+        if (currentCategory === 1) {
+          typeBadge.textContent = "APAGÓN Y CAÍDA TOTAL (TIER I)";
+          typeBadge.className = "diag-badge diag-danger";
+          impact.textContent = "¡TODO SE APAGA! Categoría 1 no cuenta con generador diésel de arranque automático. Al agotarse las baterías, todo el puerto queda paralizado.";
+          solution.textContent = "Solución ANSI/TIA-942: Suspender servicios ordenadamente para evitar corrupción de bases de datos. Se requiere migrar a Tier II/III para arranque autónomo.";
+
+        } else if (currentCategory === 2) {
+          typeBadge.textContent = "UPS & GENERADOR N+1 (TIER II)";
+          typeBadge.className = "diag-badge diag-warning";
+          impact.textContent = "Las baterías Smart-UPS absorben la carga en 0 ms. El Grupo Electrógeno Diésel arranca en 10 segundos y normaliza la alimentación.";
+          solution.textContent = "Solución ANSI/TIA-942: Respaldo N+1 exitoso. Se monitorea el tanque diésel para garantizar 24h de autonomía continua en el puerto.";
+
+        } else {
+          typeBadge.textContent = "CONTINUIDAD CONCURRENTE (TIER III / IV)";
+          typeBadge.className = "diag-badge diag-success";
+          impact.textContent = "Doble rama de distribución independiente (Rama A y B). La Rama B asume la carga completa en 0 milisegundos sin parpadeo de voltaje.";
+          solution.textContent = "Solución ANSI/TIA-942: Mantenimiento concurrente y tolerancia energética absoluta. Cero downtime para las exportaciones marítimas.";
+        }
+
+      } else if (type === 'crac') {
+        title.textContent = "❄️ ¿Qué Pasa si Falla el Aire Frío (CRAC)?";
+        desc.textContent = "El compresor de la unidad de climatización de precisión entra en paro mecánico.";
+
+        coldParticles.visible = false;
+
+        if (currentCategory === 1) {
+          typeBadge.textContent = "SOBRECALENTAMIENTO CRÍTICO (TIER I)";
+          typeBadge.className = "diag-badge diag-danger";
+          impact.textContent = "¡Alerta ASHRAE TC 9.9! La temperatura del pasillo sube a 41.5 °C en 12 minutos. Los servidores se apagan para evitar fusión de CPU.";
+          solution.textContent = "Solución ANSI/TIA-942: Categoría 1 carece de unidad de reserva N+1. Se requiere reemplazo de compresor in situ antes de reiniciar los servidores.";
+
+        } else {
+          typeBadge.textContent = "ARRANQUE DE CRAC DE RESERVA (N+1)";
+          typeBadge.className = "diag-badge diag-success";
+          impact.textContent = "La unidad redundante de climatización incrementa sus ventiladores EC inverter al 95%. La temperatura se estabiliza a 20.5 °C.";
+          solution.textContent = "Solución ANSI/TIA-942: El diseño N+1 absorbe el calor disipado sin superar los límites de temperatura ASHRAE (18 a 27 °C).";
+          setTimeout(() => { coldParticles.visible = true; }, 1500);
+        }
+
+      } else if (type === 'fiber') {
+        title.textContent = "✂️ ¿Qué Pasa si se Corta la Fibra / Canalización?";
+        desc.textContent = "Un daño mecánico en la bandeja superior secciona el cable troncal de fibra óptica.";
+
+        if (currentCategory <= 2) {
+          typeBadge.textContent = "CAÍDA DE COMUNICACIONES (TIER I & II)";
+          typeBadge.className = "diag-badge diag-danger";
+          impact.textContent = (currentCategory === 1) ? 
+            "¡DESCONEXIÓN TOTAL! No hay rutas de respaldo." : 
+            "¡CAÍDA DE SERVICIO! Aunque los switches son redundantes N+1, solo existe UNA canalización compartida física.";
+          solution.textContent = "Solución ANSI/TIA-942: Se requiere fusión por arco de fibra óptica de emergencia en sala (MTTR: 5 horas). Migrar a Categoría 3 (Doble Canalización) para evitar cortes.";
+
+        } else {
+          typeBadge.textContent = "CONMUTACIÓN A RUTA B (TIER III & IV)";
+          typeBadge.className = "diag-badge diag-success";
+          impact.textContent = "¡CERO CAÍDA! El protocolo BFD detecta la rotura en < 10 ms y desvía todo el tráfico por la CANALIZACIÓN SECUNDARIA (RUTA B - AZUL).";
+          solution.textContent = "Solución ANSI/TIA-942: Las dos rutas físicas independientes (A y B) permiten aislar el ducto averiado y repararlo en caliente (Mantenimiento Concurrente).";
+        }
+      }
+    }
+
+    function resetFailure() {
+      activeFailure = null;
+      isBlackout = false;
+      ambLight.intensity = 2.8;
+      keySun.intensity = 1.8;
+      fillBlue.intensity = 0.75;
+      ceilingLights.forEach(l => l.material.color.setHex(0xffffff));
+      emergLight1.intensity = 0;
+      emergLight2.intensity = 0;
+      document.getElementById('emergencyOverlay').classList.remove('alarm-flashing');
+      document.getElementById('diagBanner').style.display = 'none';
+      if (isAirflowActive) {
+        coldParticles.visible = true;
+        hotParticles.visible = true;
+      }
+    }
+
+    // --- 12. EXPOSICIÓN GUIADA POR FASES ---
+    let currentPhase = 1;
+    const phaseData = {
+      1: {
+        badge: "FASE 1 DE 5: OPERACIÓN NORMAL",
+        title: "1. Funcionamiento Normal: Flujo 100G & Frío",
+        desc: "Las cometas viajan del núcleo Spine MDA a los servidores. El aire frío (cian) brota del suelo a 20.5 °C y el calor asciende hacia el retorno.",
+        action: () => { resetFailure(); }
+      },
+      2: {
+        badge: "FASE 2 DE 5: ¿QUÉ PASA SI SE VA LA LUZ?",
+        title: "2. Corte Eléctrico de Red Pública (Blackout)",
+        desc: "Se simula la caída de la subestación externa. La sala entra en penumbra con luces rojas de emergencia. Demostración de respuesta por Tier.",
+        action: () => { injectFailure('power'); }
+      },
+      3: {
+        badge: "FASE 3 DE 5: ¿QUÉ PASA SI SE APAGA EL AIRE?",
+        title: "3. Falla de Climatización de Precisión (CRAC)",
+        desc: "El compresor de aire frío se apaga. En Cat 1 la temperatura sube a 41.5 °C; en Cat 2, 3 y 4 la unidad de reserva N+1 entra en marcha de inmediato.",
+        action: () => { injectFailure('crac'); }
+      },
+      4: {
+        badge: "FASE 4 DE 5: ¿QUÉ PASA SI SE CORTA LA CANALIZACIÓN?",
+        title: "4. Rotura Mecánica de Canalización de Fibra",
+        desc: "En Cat 1 y 2 la red colapsa porque solo tienen 1 ducto. En Cat 3 y 4 el tráfico se desvía instantáneamente a la Ruta B sin pérdida de datos.",
+        action: () => { injectFailure('fiber'); }
+      },
+      5: {
+        badge: "FASE 5 DE 5: SOLUCIÓN Y MANTENIMIENTO CONCURRENTE",
+        title: "5. Mantenimiento Concurrente & Conmutación",
+        desc: "Demostración de la norma ANSI/TIA-942: Los ingenieros sustituyen ductos o switches en vivo sin interrumpir las operaciones de Mar del Norte Logistics.",
+        action: () => { switchCategory(3); resetFailure(); }
+      }
+    };
+
+    function goToPhase(num) {
+      currentPhase = num;
+      const p = phaseData[num];
+      document.getElementById('phaseBadge').textContent = p.badge;
+      document.getElementById('phaseTitle').textContent = p.title;
+      document.getElementById('phaseDesc').textContent = p.desc;
+
+      document.querySelectorAll('.phase-dot').forEach((dot, idx) => {
+        dot.classList.toggle('active', idx + 1 === num);
+      });
+      p.action();
+    }
+
+    function nextPhase() {
+      currentPhase = (currentPhase >= 5) ? 1 : currentPhase + 1;
+      goToPhase(currentPhase);
+    }
+
+    function prevPhase() {
+      currentPhase = (currentPhase <= 1) ? 5 : currentPhase - 1;
+      goToPhase(currentPhase);
+    }
+
+    let autoTourTimer = null;
+    let isAutoTourRunning = false;
+
+    function toggleAutoTour() {
+      isAutoTourRunning = !isAutoTourRunning;
+      const btn = document.getElementById('btnAutoTour');
+      if (isAutoTourRunning) {
+        btn.textContent = "⏸️ Pausar Tour";
+        btn.style.background = "#ef4444";
+        runAutoTourStep();
+      } else {
+        btn.textContent = "▶️ Auto-Tour";
+        btn.style.background = "";
+        clearTimeout(autoTourTimer);
+      }
+    }
+
+    function runAutoTourStep() {
+      if (!isAutoTourRunning) return;
+      nextPhase();
+      autoTourTimer = setTimeout(runAutoTourStep, 7500);
+    }
+
+    // --- 13. CÁMARAS Y NAVEGACIÓN ---
+    let targetCamPos = null;
+    let targetControlsPos = null;
+
+    function glideTo(camPos, lookPos) {
+      targetCamPos = camPos.clone();
+      targetControlsPos = lookPos.clone();
+    }
+
+    function setCamView(idx) {
+      document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+      const buttons = document.querySelectorAll('.control-btn');
+      if (buttons[idx]) buttons[idx].classList.add('active');
+
+      if (idx === 0) glideTo(new THREE.Vector3(0.0, 4.2, 10.5), new THREE.Vector3(0.0, 1.4, 0.0));
+      if (idx === 1) glideTo(new THREE.Vector3(-1.8, 2.4, 1.6), new THREE.Vector3(-1.8, 1.8, -1.2));
+      if (idx === 2) glideTo(new THREE.Vector3(1.8, 2.2, 3.2), new THREE.Vector3(1.8, 1.6, 1.2));
+    }
+
+    let audioCtx = null;
+    let isAudioOn = false;
+    function toggleAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      isAudioOn = !isAudioOn;
+      document.getElementById('audioState').textContent = isAudioOn ? 'ON' : 'OFF';
+      if (isAudioOn && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // --- 14. ANIMATION LOOP ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      // Suave glide de cámara
+      if (targetCamPos && targetControlsPos) {
+        camera.position.lerp(targetCamPos, 0.05);
+        controls.target.lerp(targetControlsPos, 0.05);
+        if (camera.position.distanceTo(targetCamPos) < 0.05) {
+          targetCamPos = null;
+          targetControlsPos = null;
+        }
+      }
+
+      // Animación de Partículas de Aire Frío (Cian)
+      if (isAirflowActive && coldParticles.visible) {
+        const cPos = coldParticles.geometry.attributes.position.array;
+        for (let i = 0; i < coldCount; i++) {
+          cPos[i * 3 + 1] += coldSpd[i];
+          if (cPos[i * 3 + 1] > 2.5) {
+            cPos[i * 3 + 1] = 0.05;
+          }
+        }
+        coldParticles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      // Animación de Partículas de Aire Caliente (Rojo/Naranja)
+      if (isAirflowActive && hotParticles.visible) {
+        const hPos = hotParticles.geometry.attributes.position.array;
+        for (let i = 0; i < hotCount; i++) {
+          hPos[i * 3 + 1] += hotSpd[i];
+          if (hPos[i * 3 + 1] > 4.8) {
+            hPos[i * 3 + 1] = 0.8;
+          }
+        }
+        hotParticles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      // Luces estroboscópicas rojas parpadeantes si hay Blackout
+      if (isBlackout) {
+        const strobe = Math.sin(elapsed * 8) > 0 ? 3.8 : 0.8;
+        emergLight1.intensity = strobe;
+        emergLight2.intensity = strobe;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
